@@ -13,7 +13,6 @@ import "../src/SimpleCrowdfund.sol";
  * @notice This contract contains tests for the SimpleCrowdfund contract using Foundry's testing framework.
  * @author Alberto Flores
  */
-
 contract SimpleCrowdfundTest is Test {
     SimpleCrowdfund public crowdfund;
 
@@ -31,7 +30,18 @@ contract SimpleCrowdfundTest is Test {
     }
 
     //Unit tests
-    
+
+    function testWrongConstruction() public {
+        vm.expectRevert("Goal must be greater than zero");
+        new SimpleCrowdfund(owner, 0, deadline);
+
+        vm.expectRevert("Deadline must be in the future");
+        new SimpleCrowdfund(owner, goal, block.timestamp - 1);
+
+        vm.expectRevert();
+        new SimpleCrowdfund(address(0), goal, deadline);
+    }
+
     /**
      * @notice Tests the initial values of the crowdfunding contract
      */
@@ -51,16 +61,15 @@ contract SimpleCrowdfundTest is Test {
         vm.startPrank(contributor);
         vm.deal(contributor, initialWalletBalance);
         uint256 initialBalance = address(crowdfund).balance;
-        uint256 contributorInitialBalance = address(contributor).balance; 
+        uint256 contributorInitialBalance = address(contributor).balance;
         crowdfund.contribute{value: contributionAmount}();
         assertEq(crowdfund.amountRaised(), contributionAmount);
         assertEq(crowdfund.contributions(contributor), contributionAmount);
-        assertEq(initialBalance,0);
+        assertEq(initialBalance, 0);
         assertEq(address(crowdfund).balance, contributionAmount);
         assertEq(address(contributor).balance, contributorInitialBalance - contributionAmount);
 
         vm.stopPrank();
-
     }
 
     /**
@@ -72,14 +81,14 @@ contract SimpleCrowdfundTest is Test {
         uint256 initialWalletBalance = 100 ether;
         vm.startPrank(contributor);
         vm.deal(contributor, initialWalletBalance);
-        
+
         // First contribution
         crowdfund.contribute{value: firstContribution}();
         assertEq(crowdfund.amountRaised(), firstContribution);
         assertEq(crowdfund.contributions(contributor), firstContribution);
         assertEq(address(crowdfund).balance, firstContribution);
         assertEq(address(contributor).balance, initialWalletBalance - firstContribution);
-        
+
         // Second contribution
         crowdfund.contribute{value: secondContribution}();
         assertEq(crowdfund.amountRaised(), firstContribution + secondContribution);
@@ -100,7 +109,7 @@ contract SimpleCrowdfundTest is Test {
         vm.startPrank(contributor);
         vm.deal(contributor, initialWalletBalance);
         uint256 initialBalance = address(crowdfund).balance;
-        uint256 contributorInitialBalance = address(contributor).balance; 
+        uint256 contributorInitialBalance = address(contributor).balance;
         vm.expectRevert("Crowdfunding has ended");
         crowdfund.contribute{value: contributionAmount}();
         assertEq(crowdfund.amountRaised(), 0);
@@ -110,7 +119,7 @@ contract SimpleCrowdfundTest is Test {
         assertEq(contributorInitialBalance, initialWalletBalance);
         vm.stopPrank();
     }
-    
+
     /**
      * @notice Tests contributions with zero amount
      */
@@ -120,18 +129,14 @@ contract SimpleCrowdfundTest is Test {
         vm.startPrank(contributor);
         vm.deal(contributor, initialWalletBalance);
         uint256 initialBalance = address(crowdfund).balance;
-        uint256 contributorInitialBalance = address(contributor).balance; 
+        uint256 contributorInitialBalance = address(contributor).balance;
         vm.expectRevert("Contribution must be greater than zero");
         crowdfund.contribute{value: contributionAmount}();
         assertEq(crowdfund.amountRaised(), contributionAmount);
         assertEq(crowdfund.contributions(contributor), contributionAmount);
-        assertEq(initialBalance,0);
+        assertEq(initialBalance, 0);
         assertEq(address(crowdfund).balance, contributionAmount);
         assertEq(address(contributor).balance, contributorInitialBalance);
         vm.stopPrank();
     }
-
- 
-
-
 }
