@@ -48,28 +48,44 @@ contract SimpleCrowdfund is Ownable, ReentrancyGuard {
         amountRaised += msg.value;
         emit Contributed(msg.sender, msg.value);
     }
-    
+
     /**
      * @notice Allows the owner to withdraw funds if the goal is met
      */
     function withdraw() external onlyOwner nonReentrant {
         require(block.timestamp >= deadline || amountRaised >= goal, "Crowdfunding is still ongoing");
         require(amountRaised >= goal, "Funding goal not met");
-        (bool success, ) = msg.sender.call{value: amountRaised}("");
-        require(success, "Withdrawal failed");   
+        (bool success,) = msg.sender.call{value: amountRaised}("");
+        require(success, "Withdrawal failed");
         emit Withdrawn(msg.sender, amountRaised);
-        }
+    }
 
-        /**
-         * @notice Allows contributors to refund their contributions if the goal is not met
-         */
-        function refund() external nonReentrant {
+    /**
+     * @notice Allows contributors to refund their contributions if the goal is not met
+     */
+    function refund() external nonReentrant {
         require(block.timestamp >= deadline, "Crowdfunding is still ongoing");
         require(amountRaised < goal, "Funding goal was met, no refunds allowed");
         contributions[msg.sender] = 0; // Reset contribution before sending to prevent re-entrancy
-        (bool success, ) = msg.sender.call{value: contributions[msg.sender]}("");
+        (bool success,) = msg.sender.call{value: contributions[msg.sender]}("");
         require(success, "Refund failed");
         emit Refunded(msg.sender, contributions[msg.sender]);
-        }
-       
+    }
+
+    /**
+     * @notice Returns the contribution amount of a specific address
+     * @param contributor The address of the contributor
+     * @return The amount contributed by the specified address
+     */
+    function getContribution(address contributor) external view returns (uint256) {
+        return contributions[contributor];
+    }
+
+    /**
+     * @notice Returns the current state of the crowdfunding campaign
+     * @return true if the goal has been met, false otherwise
+     */
+    function isGoalMet() external view returns (bool) {
+        return amountRaised >= goal;
+    }
 }
