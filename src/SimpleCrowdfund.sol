@@ -66,10 +66,12 @@ contract SimpleCrowdfund is Ownable, ReentrancyGuard {
     function refund() external nonReentrant {
         require(block.timestamp >= deadline, "Crowdfunding is still ongoing");
         require(amountRaised < goal, "Funding goal was met, no refunds allowed");
+        require(contributions[msg.sender] > 0, "No contributions to refund");
+        uint256 contributionAmount = contributions[msg.sender];
         contributions[msg.sender] = 0; // Reset contribution before sending to prevent re-entrancy
-        (bool success,) = msg.sender.call{value: contributions[msg.sender]}("");
+        (bool success,) = msg.sender.call{value: contributionAmount}("");
         require(success, "Refund failed");
-        emit Refunded(msg.sender, contributions[msg.sender]);
+        emit Refunded(msg.sender, contributionAmount);
     }
 
     /**

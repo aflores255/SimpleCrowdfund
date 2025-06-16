@@ -139,4 +139,161 @@ contract SimpleCrowdfundTest is Test {
         assertEq(address(contributor).balance, contributorInitialBalance);
         vm.stopPrank();
     }
-}
+
+
+    /**
+     * @notice Tests withdrawal functionality when the goal is met
+     */
+    function testWithdrawCorrectly() public {
+        uint256 firstContribution = goal/2;
+        uint256 secondContribution = goal/2;
+        uint256 initialWalletBalance = 100 ether;
+        vm.startPrank(contributor);
+        vm.deal(contributor, initialWalletBalance);
+
+        // First contribution
+        crowdfund.contribute{value: firstContribution}();
+        assertEq(crowdfund.amountRaised(), firstContribution);
+        assertEq(crowdfund.contributions(contributor), firstContribution);
+        assertEq(address(crowdfund).balance, firstContribution);
+        assertEq(address(contributor).balance, initialWalletBalance - firstContribution);
+
+        // Second contribution
+        crowdfund.contribute{value: secondContribution}();
+        assertEq(crowdfund.amountRaised(), firstContribution + secondContribution);
+        assertEq(crowdfund.contributions(contributor), firstContribution + secondContribution);
+        assertEq(address(crowdfund).balance, firstContribution + secondContribution);
+        assertEq(address(contributor).balance, initialWalletBalance - firstContribution - secondContribution);
+
+        vm.stopPrank();
+
+        vm.warp(deadline + 1); // Move past the deadline
+
+        vm.startPrank(owner);
+        uint256 initialOwnerBalance = address(owner).balance;
+        crowdfund.withdraw();
+        assertEq(address(crowdfund).balance, 0);
+        assertEq(address(owner).balance, initialOwnerBalance + firstContribution + secondContribution);
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Tests withdrawal functionality when deadline is not met
+     */
+    function testCannotWithdrawBeforeDeadline() public {
+        uint256 contributionAmount = 1 ether;
+        uint256 initialWalletBalance = 100 ether;
+        vm.startPrank(contributor);
+        vm.deal(contributor, initialWalletBalance);
+        crowdfund.contribute{value: contributionAmount}();
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        vm.expectRevert("Crowdfunding is still ongoing");
+        crowdfund.withdraw();
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Tests withdrawal functionality when the goal is not met
+     */
+    function testCannotWithdrawIfGoalNotMet() public {
+        uint256 contributionAmount = 1 ether;
+        uint256 initialWalletBalance = 100 ether;
+        vm.startPrank(contributor);
+        vm.deal(contributor, initialWalletBalance);
+        crowdfund.contribute{value: contributionAmount}();
+        vm.stopPrank();
+        vm.warp(deadline + 1); // Move past the deadline
+        vm.startPrank(owner);
+        vm.expectRevert("Funding goal not met");
+        crowdfund.withdraw();
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Tests withdrawal functionality when the caller is not the owner
+     */
+    function testCannotWithdrawNotOwner() public {
+        uint256 contributionAmount = goal;
+        uint256 initialWalletBalance = 100 ether;
+        vm.startPrank(contributor);
+        vm.deal(contributor, initialWalletBalance);
+        crowdfund.contribute{value: contributionAmount}();
+        vm.stopPrank();
+        vm.warp(deadline + 1); // Move past the deadline
+        vm.startPrank(nonContributor);
+        vm.expectRevert();
+        crowdfund.withdraw();
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Tests getting contributions for a contributor
+     */
+    function testGetContributions() public {
+        uint256 contributionAmount = 1 ether;
+        uint256 initialWalletBalance = 100 ether;
+        vm.startPrank(contributor);
+        vm.deal(contributor, initialWalletBalance);
+        crowdfund.contribute{value: contributionAmount}();
+        assertEq(crowdfund.contributions(contributor), contributionAmount);
+        assertEq(crowdfund.getContribution(contributor), contributionAmount);
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Tests if the funding goal is met
+     */
+    function testConsultIfGoalIsMet() public {
+        uint256 contributionAmount = goal;
+        uint256 initialWalletBalance = 100 ether;
+        vm.startPrank(contributor);
+        vm.deal(contributor, initialWalletBalance);
+        crowdfund.contribute{value: contributionAmount}();
+        assertTrue(crowdfund.isGoalMet());
+        vm.stopPrank();
+    }
+
+     /**
+     * @notice Tests if the funding goal is not met
+     */
+    function testConsultIfGoalIsNotMet() public {
+        uint256 contributionAmount = goal - 1 wei;
+        uint256 initialWalletBalance = 100 ether;
+        vm.startPrank(contributor);
+        vm.deal(contributor, initialWalletBalance);
+        crowdfund.contribute{value: contributionAmount}();
+        assertFalse(crowdfund.isGoalMet());
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Tests refund functionality when the goal is not met
+     */
+    function testRefundCorrectly() public {
+ 
+        uint256 contributionAmount = goal - 1 wei; // Less than the goal
+        uint256 initialWalletBalance = 100 ether;
+        vm.startPrank(contributor);
+        vm.deal(contributor, initialWalletBalance);
+        uint256 initialBalance = address(crowdfund).balance;
+        uint256 contributorInitialBalance = address(contributor).balance;
+        crowdfund.contribute{value: contributionAmount}();
+        assertEq(crowdfund.amountRaised(), contributionAmount);
+        assertEq(crowdfund.contributions(contributor), contributionAmount);
+        assertEq(initialBalance, 0);
+        assertEq(address(crowdfund).balance, contributionAmount);
+        assertEq(address(contributor).balance, contributorInitialBalance - contributionAmount);
+        vm.warp(deadline + 1); // Move past the deadline
+        crowdfund.refund();
+        assertEq(crowdfund.contributions(contributor), 0);
+        assertEq(address(crowdfund).balance, 0);
+        assertEq(address(contributor).balance, contributorInitialBalance);
+    
+
+        vm.stopPrank();
+    }
+
+      
+    }
