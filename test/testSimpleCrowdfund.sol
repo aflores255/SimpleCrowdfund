@@ -5,13 +5,13 @@
 pragma solidity ^0.8.28;
 
 import "forge-std/Test.sol";
-
 import "../src/SimpleCrowdfund.sol";
+import "../test/helpers/RejectEther.sol";
+import "../test/helpers/RejectRefund.sol";
 
 /**
  * @title SimpleCrowdfundTest - A test suite for the SimpleCrowdfund contract
  * @notice This contract contains tests for the SimpleCrowdfund contract using Foundry's testing framework.
- * @author Alberto Flores
  */
 contract SimpleCrowdfundTest is Test {
     SimpleCrowdfund public crowdfund;
@@ -140,13 +140,12 @@ contract SimpleCrowdfundTest is Test {
         vm.stopPrank();
     }
 
-
     /**
      * @notice Tests withdrawal functionality when the goal is met
      */
     function testWithdrawCorrectly() public {
-        uint256 firstContribution = goal/2;
-        uint256 secondContribution = goal/2;
+        uint256 firstContribution = goal / 2;
+        uint256 secondContribution = goal / 2;
         uint256 initialWalletBalance = 100 ether;
         vm.startPrank(contributor);
         vm.deal(contributor, initialWalletBalance);
@@ -229,20 +228,6 @@ contract SimpleCrowdfundTest is Test {
     }
 
     /**
-     * @notice Tests getting contributions for a contributor
-     */
-    function testGetContributions() public {
-        uint256 contributionAmount = 1 ether;
-        uint256 initialWalletBalance = 100 ether;
-        vm.startPrank(contributor);
-        vm.deal(contributor, initialWalletBalance);
-        crowdfund.contribute{value: contributionAmount}();
-        assertEq(crowdfund.contributions(contributor), contributionAmount);
-        assertEq(crowdfund.getContribution(contributor), contributionAmount);
-        vm.stopPrank();
-    }
-
-    /**
      * @notice Tests if the funding goal is met
      */
     function testConsultIfGoalIsMet() public {
@@ -255,7 +240,7 @@ contract SimpleCrowdfundTest is Test {
         vm.stopPrank();
     }
 
-     /**
+    /**
      * @notice Tests if the funding goal is not met
      */
     function testConsultIfGoalIsNotMet() public {
@@ -272,7 +257,6 @@ contract SimpleCrowdfundTest is Test {
      * @notice Tests refund functionality when the goal is not met
      */
     function testRefundCorrectly() public {
- 
         uint256 contributionAmount = goal - 1 wei; // Less than the goal
         uint256 initialWalletBalance = 100 ether;
         vm.startPrank(contributor);
@@ -290,10 +274,96 @@ contract SimpleCrowdfundTest is Test {
         assertEq(crowdfund.contributions(contributor), 0);
         assertEq(address(crowdfund).balance, 0);
         assertEq(address(contributor).balance, contributorInitialBalance);
-    
 
         vm.stopPrank();
     }
 
-      
+    /**
+     * @notice Tests Cannot refund before the deadline
+     */
+    function testCannotRefundBeforeDeadline() public {
+        uint256 contributionAmount = 1 ether;
+        uint256 initialWalletBalance = 100 ether;
+        vm.startPrank(contributor);
+        vm.deal(contributor, initialWalletBalance);
+        crowdfund.contribute{value: contributionAmount}();
+        vm.stopPrank();
+
+        vm.warp(deadline - 1); // Move before the deadline
+        vm.startPrank(contributor);
+        vm.expectRevert("Crowdfunding is still ongoing");
+        crowdfund.refund();
+        vm.stopPrank();
     }
+
+    /**
+     * @notice Tests Cannot refund if the goal was met
+     */
+    function testCannotRefundGoalMet() public {
+        uint256 contributionAmount = goal;
+        uint256 initialWalletBalance = 100 ether;
+        vm.startPrank(contributor);
+        vm.deal(contributor, initialWalletBalance);
+        crowdfund.contribute{value: contributionAmount}();
+        vm.stopPrank();
+        vm.warp(deadline + 1); // Move past the deadline
+        vm.startPrank(contributor);
+        vm.expectRevert("Funding goal was met, no refunds allowed");
+        crowdfund.refund();
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Tests Cannot refund if no contributions were made
+     */
+    function testCannotRefundIfNoContributions() public {
+        uint256 contributionAmount = goal / 2;
+        uint256 initialWalletBalance = 100 ether;
+        vm.startPrank(contributor);
+        vm.deal(contributor, initialWalletBalance);
+        crowdfund.contribute{value: contributionAmount}();
+        vm.stopPrank();
+        vm.warp(deadline + 1); // Move past the deadline
+        vm.startPrank(nonContributor);
+        vm.expectRevert("No contributions to refund");
+        crowdfund.refund();
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Tests withdrawal fails if the owner rejects ether
+     */
+    function testWithdrawFailsIfOwnerRejectsEther() public {
+        RejectEther rejector = new RejectEther();
+        crowdfund = new SimpleCrowdfund(address(rejector), goal, deadline);
+
+        vm.deal(contributor, goal);
+        vm.startPrank(contributor);
+        crowdfund.contribute{value: goal}();
+        vm.stopPrank();
+
+        vm.warp(deadline + 1);
+        vm.startPrank(address(rejector));
+        vm.expectRevert("Withdrawal failed");
+        crowdfund.withdraw();
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Tests refund fails if the receiver rejects ether
+     */
+    function testRefundFailsIfReceiverRejectsEther() public {
+        RejectRefund rejector = new RejectRefund();
+
+        vm.deal(address(rejector), goal - 1 wei);
+        vm.startPrank(address(rejector));
+        rejector.contributeTo{value: goal - 1 wei}(crowdfund);
+        vm.stopPrank();
+        vm.warp(deadline + 1);
+
+        vm.startPrank(address(rejector));
+        vm.expectRevert("Refund failed");
+        rejector.tryRefund(crowdfund);
+        vm.stopPrank();
+    }
+}

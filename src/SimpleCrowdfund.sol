@@ -33,7 +33,6 @@ contract SimpleCrowdfund is Ownable, ReentrancyGuard {
     constructor(address _owner, uint256 _goal, uint256 _deadline) Ownable(_owner) {
         require(_goal > 0, "Goal must be greater than zero");
         require(_deadline > block.timestamp, "Deadline must be in the future");
-        require(_owner != address(0), "Owner cannot be the zero address");
         goal = _goal;
         deadline = _deadline;
     }
@@ -72,15 +71,6 @@ contract SimpleCrowdfund is Ownable, ReentrancyGuard {
         (bool success,) = msg.sender.call{value: contributionAmount}("");
         require(success, "Refund failed");
         emit Refunded(msg.sender, contributionAmount);
-    }
-
-    /**
-     * @notice Returns the contribution amount of a specific address
-     * @param contributor The address of the contributor
-     * @return The amount contributed by the specified address
-     */
-    function getContribution(address contributor) external view returns (uint256) {
-        return contributions[contributor];
     }
 
     /**
