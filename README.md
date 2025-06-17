@@ -107,6 +107,10 @@ Two helper contracts are used to simulate edge cases and failure scenarios:
 | `testCannotRefundIfNoContributions`      | Refund fails for users who never contributed.                          |
 | `testWithdrawFailsIfOwnerRejectsEther`   | Uses `RejectEther` to test withdrawal failure when owner rejects ETH.  |
 | `testRefundFailsIfReceiverRejectsEther`  | Uses `RejectRefund` to test refund failure when contributor rejects ETH.|
+| `testFuzzContributeAmount`               | Tests single contributions using random valid ETH amounts.             |
+| `testFuzzMultipleContributors`           | Verifies balance tracking for multiple random contributors and amounts.|
+| `testFuzzWithdrawAfterGoal`              | Ensures the owner can withdraw funds when a fuzzed amount ≥ goal is reached. |
+| `testFuzzRefund`                         | Confirms that refunds work correctly for random amounts < goal after the deadline. |
 
 
 To run all tests with Foundry:

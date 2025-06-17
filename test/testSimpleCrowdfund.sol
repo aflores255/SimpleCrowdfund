@@ -366,4 +366,101 @@ contract SimpleCrowdfundTest is Test {
         rejector.tryRefund(crowdfund);
         vm.stopPrank();
     }
+
+    // Fuzz tests
+
+    /**
+     * @notice Fuzz test for contributions with random amounts
+     * @param amount The amount to contribute, must be between 0 and 100 ether
+     */
+    function testFuzzContributeAmount(uint256 amount) public {
+        vm.assume(amount > 0 && amount < 100 ether);
+        vm.deal(contributor, amount);
+        vm.startPrank(contributor);
+        uint256 initialBalance = address(crowdfund).balance;
+        uint256 contributorInitialBalance = address(contributor).balance;
+        crowdfund.contribute{value: amount}();
+        assertEq(crowdfund.amountRaised(), amount);
+        assertEq(crowdfund.contributions(contributor), amount);
+        assertEq(initialBalance, 0);
+        assertEq(address(crowdfund).balance, amount);
+        assertEq(address(contributor).balance, contributorInitialBalance - amount);
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Fuzz test for contributions with multiple contributors
+     * @param contributorA The first contributor's address
+     * @param contributorB The second contributor's address
+     * @param amountA The amount contributed by the first contributor, must be between 0 and 100 ether
+     * @param amountB The amount contributed by the second contributor, must be between 0 and 100 ether
+     */
+    function testFuzzMultipleContributors(address contributorA, address contributorB, uint256 amountA, uint256 amountB)
+        public
+    {
+        vm.assume(contributorA != address(0) && contributorB != address(0) && contributorA != contributorB);
+        vm.assume(amountA > 0 && amountA < 100 ether);
+        vm.assume(amountB > 0 && amountB < 100 ether);
+
+        vm.deal(contributorA, amountA);
+        vm.deal(contributorB, amountB);
+        uint256 contributorAInitialBalance = address(contributorA).balance;
+        uint256 contributorBInitialBalance = address(contributorB).balance;
+        vm.startPrank(contributorA);
+        crowdfund.contribute{value: amountA}();
+        vm.stopPrank();
+
+        vm.startPrank(contributorB);
+        crowdfund.contribute{value: amountB}();
+        vm.stopPrank();
+
+        assertEq(crowdfund.contributions(contributorA), amountA);
+        assertEq(crowdfund.contributions(contributorB), amountB);
+        assertEq(crowdfund.amountRaised(), amountA + amountB);
+        assertEq(address(contributorA).balance, contributorAInitialBalance - amountA);
+        assertEq(address(contributorB).balance, contributorBInitialBalance - amountB);
+        assertEq(address(crowdfund).balance, amountA + amountB);
+    }
+
+    /**
+     * @notice Fuzz test for contributions after the deadline
+     * @param amount The amount to contribute, must be between 0 and 100 ether
+     */
+    function testFuzzWithdrawAfterGoal(uint256 amount) public {
+        vm.assume(amount >= goal && amount < 100 ether);
+        vm.deal(contributor, amount);
+        vm.startPrank(contributor);
+        crowdfund.contribute{value: amount}();
+        vm.stopPrank();
+        vm.warp(deadline + 1);
+        vm.startPrank(owner);
+        uint256 initialOwnerBalance = owner.balance;
+        crowdfund.withdraw();
+        assertEq(owner.balance, initialOwnerBalance + amount);
+        assertEq(address(crowdfund).balance, 0);
+        assertEq(crowdfund.amountRaised(), amount);
+        assertEq(crowdfund.contributions(contributor), amount);
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Fuzz test for refunding contributions within the boundary
+     * @param amount The amount to contribute, must be between 0 and the goal
+     */
+    function testFuzzRefund(uint256 amount) public {
+        vm.assume(amount > 0 && amount < goal);
+        vm.deal(contributor, amount);
+        vm.startPrank(contributor);
+        crowdfund.contribute{value: amount}();
+        vm.stopPrank();
+
+        vm.warp(deadline + 1);
+
+        vm.startPrank(contributor);
+        crowdfund.refund();
+        assertEq(crowdfund.contributions(contributor), 0);
+        assertEq(address(crowdfund).balance, 0);
+        assertEq(address(contributor).balance, amount);
+        vm.stopPrank();
+    }
 }
