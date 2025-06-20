@@ -16,6 +16,8 @@ contract SimpleCrowdfund is Ownable, ReentrancyGuard {
     uint256 public goal;
     uint256 public deadline;
     uint256 public amountRaised;
+    uint256 public constant MIN_CONTRIBUTION = 0.01 ether;
+    uint256 private extended = 0;
 
     mapping(address => uint256) public contributions;
 
@@ -23,6 +25,7 @@ contract SimpleCrowdfund is Ownable, ReentrancyGuard {
     event Contributed(address indexed contributor, uint256 amount);
     event Withdrawn(address indexed owner, uint256 amount);
     event Refunded(address indexed contributor, uint256 amount);
+    event DeadlineExtended(uint256 newDeadline);
 
     /**
      * @notice Constructor to initialize the crowdfunding contract
@@ -42,7 +45,7 @@ contract SimpleCrowdfund is Ownable, ReentrancyGuard {
      */
     function contribute() external payable {
         require(block.timestamp < deadline, "Crowdfunding has ended");
-        require(msg.value > 0, "Contribution must be greater than zero");
+        require(msg.value >= MIN_CONTRIBUTION, "Contribution must be greater than minimum amount");
         contributions[msg.sender] += msg.value;
         amountRaised += msg.value;
         emit Contributed(msg.sender, msg.value);
@@ -65,12 +68,25 @@ contract SimpleCrowdfund is Ownable, ReentrancyGuard {
     function refund() external nonReentrant {
         require(block.timestamp >= deadline, "Crowdfunding is still ongoing");
         require(amountRaised < goal, "Funding goal was met, no refunds allowed");
-        require(contributions[msg.sender] > 0, "No contributions to refund");
+        require(contributions[msg.sender] >= MIN_CONTRIBUTION, "No contributions to refund");
         uint256 contributionAmount = contributions[msg.sender];
         contributions[msg.sender] = 0; // Reset contribution before sending to prevent re-entrancy
         (bool success,) = msg.sender.call{value: contributionAmount}("");
         require(success, "Refund failed");
         emit Refunded(msg.sender, contributionAmount);
+    }
+
+    /**
+     * @notice Allows the owner to extend the deadline of the crowdfunding campaign
+     * @param newDeadline The new deadline (in Unix timestamp) for the crowdfunding campaign
+     */
+    function extendDeadline(uint256 newDeadline) external onlyOwner {
+        require(block.timestamp < deadline, "Crowdfunding has ended");
+        require(newDeadline > deadline, "New deadline must be later than current deadline");
+        require(extended == 0, "Deadline can only be extended once");
+        extended = 1;
+        deadline = newDeadline;
+        emit DeadlineExtended(newDeadline);
     }
 
     /**

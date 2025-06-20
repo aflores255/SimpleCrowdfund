@@ -21,6 +21,7 @@ contract SimpleCrowdfundTest is Test {
     address public nonContributor = vm.addr(3);
     uint256 public goal = 10 ether;
     uint256 public deadline = block.timestamp + 30 days;
+    uint256 public constant MIN_CONTRIBUTION = 0.01 ether;
 
     /**
      * @notice Sets up the crowdfunding contract for testing
@@ -130,7 +131,7 @@ contract SimpleCrowdfundTest is Test {
         vm.deal(contributor, initialWalletBalance);
         uint256 initialBalance = address(crowdfund).balance;
         uint256 contributorInitialBalance = address(contributor).balance;
-        vm.expectRevert("Contribution must be greater than zero");
+        vm.expectRevert("Contribution must be greater than minimum amount");
         crowdfund.contribute{value: contributionAmount}();
         assertEq(crowdfund.amountRaised(), contributionAmount);
         assertEq(crowdfund.contributions(contributor), contributionAmount);
@@ -367,6 +368,68 @@ contract SimpleCrowdfundTest is Test {
         vm.stopPrank();
     }
 
+    /**
+     * @notice Tests extending the deadline of the crowdfunding campaign
+     */
+    function testExtendDeadline() public {
+        uint256 newDeadline = deadline + 30 days;
+        vm.warp(deadline - 1); // Move to just before the deadline
+        vm.startPrank(owner);
+        crowdfund.extendDeadline(newDeadline);
+        assertEq(crowdfund.deadline(), newDeadline);
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Tests extending the deadline fails if the new deadline is not later than the current one
+     */
+    function testCannotExtendDeadlineNotLater() public {
+        uint256 newDeadline = deadline - 1;
+        vm.startPrank(owner);
+        vm.expectRevert("New deadline must be later than current deadline");
+        crowdfund.extendDeadline(newDeadline);
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Tests extending the deadline fails if the deadline has already passed
+     */
+    function testCannotExtendDeadlineIfAlreadyPassed() public {
+        uint256 newDeadline = deadline + 30 days;
+        vm.warp(deadline + 1); // Move past the deadline
+        vm.startPrank(owner);
+        vm.expectRevert("Crowdfunding has ended");
+        crowdfund.extendDeadline(newDeadline);
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Tests extending the deadline fails if already extended
+     */
+    function testCannotExtendDeadlineIfAlreadyExtended() public {
+        uint256 newDeadline = deadline + 30 days;
+        vm.warp(deadline - 1); // Move to just before the deadline
+        vm.startPrank(owner);
+        crowdfund.extendDeadline(newDeadline);
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        vm.expectRevert("Deadline can only be extended once");
+        crowdfund.extendDeadline(newDeadline + 30 days);
+        vm.stopPrank();
+    }
+
+    /**
+     * @notice Tests extending the deadline fails if the caller is not the owner
+     */
+    function testCannotExtendDeadlineIfNotOwner() public {
+        uint256 newDeadline = deadline + 30 days;
+        vm.startPrank(nonContributor);
+        vm.expectRevert();
+        crowdfund.extendDeadline(newDeadline);
+        vm.stopPrank();
+    }
+
     // Fuzz tests
 
     /**
@@ -374,7 +437,7 @@ contract SimpleCrowdfundTest is Test {
      * @param amount The amount to contribute, must be between 0 and 100 ether
      */
     function testFuzzContributeAmount(uint256 amount) public {
-        vm.assume(amount > 0 && amount < 100 ether);
+        vm.assume(amount > MIN_CONTRIBUTION && amount < 100 ether);
         vm.deal(contributor, amount);
         vm.startPrank(contributor);
         uint256 initialBalance = address(crowdfund).balance;
@@ -398,9 +461,12 @@ contract SimpleCrowdfundTest is Test {
     function testFuzzMultipleContributors(address contributorA, address contributorB, uint256 amountA, uint256 amountB)
         public
     {
-        vm.assume(contributorA != address(0) && contributorB != address(0) && contributorA != contributorB);
-        vm.assume(amountA > 0 && amountA < 100 ether);
-        vm.assume(amountB > 0 && amountB < 100 ether);
+        vm.assume(
+            contributorA != address(0) && contributorB != address(0) && contributorA != contributorB
+                && contributorA != address(crowdfund) && contributorB != address(crowdfund)
+        );
+        amountA = bound(amountA, MIN_CONTRIBUTION, 100 ether);
+        amountB = bound(amountB, MIN_CONTRIBUTION, 100 ether);
 
         vm.deal(contributorA, amountA);
         vm.deal(contributorB, amountB);
@@ -448,7 +514,7 @@ contract SimpleCrowdfundTest is Test {
      * @param amount The amount to contribute, must be between 0 and the goal
      */
     function testFuzzRefund(uint256 amount) public {
-        vm.assume(amount > 0 && amount < goal);
+        vm.assume(amount > MIN_CONTRIBUTION && amount < goal);
         vm.deal(contributor, amount);
         vm.startPrank(contributor);
         crowdfund.contribute{value: amount}();

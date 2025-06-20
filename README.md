@@ -11,6 +11,7 @@ Whether you're launching a new idea or backing one, **SimpleCrowdfund** ensures 
 - 💸 **Funds are only released if the funding goal is reached**, protecting contributors from failed or abandoned projects.
 - 🔁 **Automatic refunds are guaranteed** if the goal isn't met by the deadline — no need to rely on third parties.
 - 🔐 **Security is built-in**, using audited OpenZeppelin libraries and protections like reentrancy guards and strict ownership controls.
+- ⏳ **Deadlines can be extended once**, providing flexibility while maintaining trust.
 
 This contract gives backers peace of mind and empowers project owners with a trustless fundraising tool that can be easily deployed, customized, and integrated into any DApp or Web3 experience.
 
@@ -24,6 +25,7 @@ Built with **Solidity 0.8.28**, the contract includes basic protections such as 
 |-----------------------------|-------------------------------------------------------------------------------|
 | 💰 **ETH Contributions**     | Users can contribute ETH towards the crowdfunding goal.                      |
 | ⏰ **Deadline Control**       | Contributions only accepted before the deadline.                             |
+| 🧭 **Deadline Extension**     | Owner can extend the deadline one time, only before it ends.  
 | 🎯 **Funding Goal**           | The contract tracks whether the funding goal has been reached.               |
 | 💸 **Owner Withdrawal**       | Owner can withdraw funds only if the goal is met after the deadline or early.|
 | 🔄 **Contributor Refunds**    | Contributors can refund their ETH if goal is not met by the deadline.        |
@@ -51,6 +53,7 @@ Initializes the crowdfunding contract with the owner address, funding goal (in w
 | `contribute()`     | Allows users to send ETH as contributions before the deadline.                  |
 | `withdraw()`       | Allows the owner to withdraw funds if the goal is met and deadline passed.      |
 | `refund()`         | Allows contributors to refund their ETH if the funding goal is not met.         |
+| `extendDeadline()	`| Allows the owner to extend the deadline once, before it expires.                |
 | `isGoalMet()`      | Returns whether the funding goal has been reached.                             |
 
 ---
@@ -62,6 +65,7 @@ Initializes the crowdfunding contract with the owner address, funding goal (in w
 | `Contributed`  | Emitted when a user successfully contributes ETH.     |
 | `Withdrawn`    | Emitted when the owner withdraws funds.                |
 | `Refunded`     | Emitted when a contributor successfully refunds ETH.  |
+| `DeadlineExtended`| Emitted when the deadline is extended by the owner.|
 
 ---
 
@@ -73,6 +77,7 @@ Initializes the crowdfunding contract with the owner address, funding goal (in w
 - ❌ Refunds are not allowed if the funding goal is reached.
 - ✅ Uses **ReentrancyGuard** to protect against reentrancy attacks.
 - ✅ Prevents refunding more than the original contribution.
+- ❌ Deadline can only be extended once, and only before it ends.
 
 ---
 
@@ -107,6 +112,11 @@ Two helper contracts are used to simulate edge cases and failure scenarios:
 | `testCannotRefundIfNoContributions`      | Refund fails for users who never contributed.                          |
 | `testWithdrawFailsIfOwnerRejectsEther`   | Uses `RejectEther` to test withdrawal failure when owner rejects ETH.  |
 | `testRefundFailsIfReceiverRejectsEther`  | Uses `RejectRefund` to test refund failure when contributor rejects ETH.|
+| `testExtendDeadline`                     | Verifies the owner can successfully extend the deadline before it ends. |
+| `testCannotExtendDeadlineNotLater`       | Ensures extension fails if new deadline is not later than current one. |
+| `testCannotExtendDeadlineIfAlreadyPassed`| Prevents deadline extension after the crowdfunding has ended. |
+| `testCannotExtendDeadlineIfAlreadyExtended`| Verifies that the deadline can only be extended once. |
+| `testCannotExtendDeadlineIfNotOwner`     | Ensures only the owner can extend the deadline. |
 | `testFuzzContributeAmount`               | Tests single contributions using random valid ETH amounts.             |
 | `testFuzzMultipleContributors`           | Verifies balance tracking for multiple random contributors and amounts.|
 | `testFuzzWithdrawAfterGoal`              | Ensures the owner can withdraw funds when a fuzzed amount ≥ goal is reached. |
@@ -123,7 +133,7 @@ forge test
 
 | File                    | % Lines         | % Statements     | % Branches      | % Functions     |
 |-------------------------|------------------|-------------------|------------------|------------------|
-| `src/SimpleCrowdfund.sol` | 100.00% (28/28) | 100.00% (26/26) | 100.00% (22/22) | 100.00% (5/5)   |
+| `src/SimpleCrowdfund.sol` | 100.00% (34/34) | 100.00% (31/31) | 100.00% (28/28) | 100.00% (6/6)   |
 
 
 ## 🔗 Dependencies
