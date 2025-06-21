@@ -17,7 +17,7 @@ contract SimpleCrowdfund is Ownable, ReentrancyGuard {
     uint256 public deadline;
     uint256 public amountRaised;
     uint256 public constant MIN_CONTRIBUTION = 0.01 ether;
-    uint256 private extended = 0;
+    uint256 private extended = 1;
 
     mapping(address => uint256) public contributions;
 
@@ -83,8 +83,8 @@ contract SimpleCrowdfund is Ownable, ReentrancyGuard {
     function extendDeadline(uint256 newDeadline) external onlyOwner {
         require(block.timestamp < deadline, "Crowdfunding has ended");
         require(newDeadline > deadline, "New deadline must be later than current deadline");
-        require(extended == 0, "Deadline can only be extended once");
-        extended = 1;
+        require(extended == 1, "Deadline can only be extended once");
+        extended = 2;
         deadline = newDeadline;
         emit DeadlineExtended(newDeadline);
     }
