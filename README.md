@@ -1,13 +1,15 @@
 
-# 🚀 SimpleCrowdfund – A Secure and Refundable Crowdfunding Smart Contract in Solidity
+# 🚀 CrowdfundFactory – Create and Manage Multiple Crowdfund Campaigns
 
 ## 📌 Description
 
-**SimpleCrowdfund** is a minimalist, yet powerful Ethereum smart contract designed to bring transparency, fairness, and trust to crowdfunding campaigns.
+**CrowdfundFactory** is a minimal smart contract factory that allows anyone to create multiple, independent instances of the SimpleCrowdfund contract. Each campaign created through the factory has its own parameters and logic, while the factory keeps track of all deployments.
 
-🚀 Unlike traditional platforms that rely on intermediaries, **SimpleCrowdfund** runs entirely on-chain — meaning **no platform fees**, **no censorship**, and **guaranteed logic enforcement**. It’s ideal for startups, creators, communities, or developers looking to raise ETH securely and transparently from supporters.
+This pattern enables DApps, DAOs, and platforms to programmatically spawn new crowdfunding campaigns with one centralized point of creation.
 
-Whether you're launching a new idea or backing one, **SimpleCrowdfund** ensures that:
+🚀 Unlike traditional platforms that rely on intermediaries, **CrowdfundFactory** runs entirely on-chain — meaning **no platform fees**, **no censorship**, and **guaranteed logic enforcement**. It’s ideal for startups, creators, communities, or developers looking to raise ETH securely and transparently from supporters.
+
+Whether you're launching a new idea or backing one, **CrowdfundFactory** ensures for every campaign that:
 - 💸 **Funds are only released if the funding goal is reached**, protecting contributors from failed or abandoned projects.
 - 🔁 **Automatic refunds are guaranteed** if the goal isn't met by the deadline — no need to rely on third parties.
 - 🔐 **Security is built-in**, using audited OpenZeppelin libraries and protections like reentrancy guards and strict ownership controls.
@@ -23,6 +25,10 @@ Built with **Solidity 0.8.28**, the contract includes basic protections such as 
 
 | **Feature**                 | **Description**                                                               |
 |-----------------------------|-------------------------------------------------------------------------------|
+| 🏗️ **Campaign Creation**         | Deploy new `SimpleCrowdfund` instances using a single function call.         |
+| 🗂️ **Campaign Registry**         | Keeps a record of all deployed campaigns in a public mapping.                |
+| 🔢 **Auto-Indexing**             | Each campaign is stored and accessible by an incremental ID (`uint256`).     |
+| 📦 **Constructor Forwarding**    | Automatically forwards constructor arguments: owner, goal, and deadline.     |
 | 💰 **ETH Contributions**     | Users can contribute ETH towards the crowdfunding goal.                      |
 | ⏰ **Deadline Control**       | Contributions only accepted before the deadline.                             |
 | 🧭 **Deadline Extension**     | Owner can extend the deadline one time, only before it ends.  
@@ -34,7 +40,50 @@ Built with **Solidity 0.8.28**, the contract includes basic protections such as 
 
 ---
 
-## 📜 Contract Details
+## ⚙️ How It Works
+
+The `CrowdfundFactory` acts as a generator of independent `SimpleCrowdfund` campaigns. Each time `createCrowdfund(...)` is called, a new crowdfunding contract is deployed with its own parameters (owner, goal, deadline).
+
+All campaigns are mapped and indexed inside the factory using a counter (`crowdfundCount`) so they can be retrieved or displayed later.
+
+This allows platforms and DApps to launch **unlimited campaigns**, each running independently with no overlap in funds or logic.
+
+---
+
+### 🧭 System Diagram
+
+![CrowdfundFactory Diagram](./assets/CrowdfundDiagram.jpg)
+
+🗂 All campaigns are stored in: crowdfunds[uint256 id]
+---
+
+## 📜 CrowdfundFactory Contract Details
+
+### 📊 Factory State
+
+| **Variable**       | **Type**    | **Description**                                     |
+|--------------------|-------------|-----------------------------------------------------|
+| `crowdfunds` | `mapping(uint256 => Crowdfund)` | Maps each index to its corresponding campaign data.|
+| `crowdfundCount` | `uint256` | Total number of campaigns created via the factory.|
+
+
+### 🔧 Functions
+
+| **Function**       | **Description**                                                                 |
+|--------------------|---------------------------------------------------------------------------------|
+| `createCrowdfund()` | Allows to create a new crowdfund campaign.                  |
+
+---
+
+### 📡 Events
+
+| **Event**      | **Description**                                        |
+|----------------|--------------------------------------------------------|
+| `CrowdfundCreated`  | Emitted when a new campaign is created.     |
+
+---
+
+## 📜 SimpleCrowdfund Contract Details
 
 ### ⚙️ Constructor
 
@@ -90,7 +139,13 @@ Two helper contracts are used to simulate edge cases and failure scenarios:
 - **`RejectEther`**: Simulates a contract that **refuses to accept ETH**, used to test how the crowdfund contract handles failed withdrawals to the owner.
 - **`RejectRefund`**: Simulates a contributor that **rejects refunds**, ensuring the refund logic handles recipient-side failures safely.
 
-### 🧪 Test Cases
+### 🧪 Test Cases CrowdfundFactory
+
+| `testInitialCrowdfundCountIsZero`       | Verifies that the initial crowdfunds count is zero.|
+| `testCreateCrowdfundIncrementsCount`    | Ensures the the counter increases when a new crowdfund is created |
+| `testCreateCrowdfundStoresCorrectData`  | Confirms that the crowdfund campaign stores the correct data |
+
+### 🧪 Test Cases SimpleCrowdfund
 
 | Test Function                            | Purpose                                                                 |
 |------------------------------------------|-------------------------------------------------------------------------|
@@ -122,7 +177,6 @@ Two helper contracts are used to simulate edge cases and failure scenarios:
 | `testFuzzWithdrawAfterGoal`              | Ensures the owner can withdraw funds when a fuzzed amount ≥ goal is reached. |
 | `testFuzzRefund`                         | Confirms that refunds work correctly for random amounts < goal after the deadline. |
 
-
 To run all tests with Foundry:
 
 ```bash
@@ -133,6 +187,7 @@ forge test
 
 | File                    | % Lines         | % Statements     | % Branches      | % Functions     |
 |-------------------------|------------------|-------------------|------------------|------------------|
+| `src/CrowdfundFactory.sol` | 100.00% (5/5) | 100.00% (5/5) | 100.00% (0/0) | 100.00% (1/1)   |
 | `src/SimpleCrowdfund.sol` | 100.00% (34/34) | 100.00% (31/31) | 100.00% (28/28) | 100.00% (6/6)   |
 
 
@@ -155,6 +210,13 @@ forge test
 
 ### 🚀 Deployment Example
 
+- Factory:
+```solidity
+factory = new CrowdfundFactory();
+factory.createCrowdfund(ownerAddress, 10 ether, block.timestamp + 7 days);
+```
+
+- Individual Campaign:
 ```solidity
 new SimpleCrowdfund(ownerAddress, 10 ether, block.timestamp + 7 days);
 ```

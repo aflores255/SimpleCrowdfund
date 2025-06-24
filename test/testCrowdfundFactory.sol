@@ -8,7 +8,7 @@ import "../src/SimpleCrowdfund.sol";
 /**
  * @title CrowdfundFactoryTest - Tests for the CrowdfundFactory contract
  * @notice This contract tests the functionality of the CrowdfundFactory, ensuring that it correctly creates and tracks crowdfunding campaigns.
- *  @author Alberto FloresS
+ *  @author Alberto Flores
  */
 contract CrowdfundFactoryTest is Test {
     CrowdfundFactory factory;
