@@ -55,6 +55,7 @@ This allows platforms and DApps to launch **unlimited campaigns**, each running 
 ![CrowdfundFactory Diagram](./assets/CrowdfundDiagram.jpg)
 
 🗂 All campaigns are stored in: crowdfunds[uint256 id]
+
 ---
 
 ## 📜 CrowdfundFactory Contract Details
@@ -141,6 +142,8 @@ Two helper contracts are used to simulate edge cases and failure scenarios:
 
 ### 🧪 Test Cases CrowdfundFactory
 
+| Test Function                            | Purpose                                                                 |
+|------------------------------------------|-------------------------------------------------------------------------|
 | `testInitialCrowdfundCountIsZero`       | Verifies that the initial crowdfunds count is zero.|
 | `testCreateCrowdfundIncrementsCount`    | Ensures the the counter increases when a new crowdfund is created |
 | `testCreateCrowdfundStoresCorrectData`  | Confirms that the crowdfund campaign stores the correct data |
